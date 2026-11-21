@@ -9,9 +9,7 @@
   /* ---------------------------------------------------------
      1. DADOS: palavras, posições no tabuleiro, pistas e manual
      --------------------------------------------------------- */
-  const ROWS = 13;
-  const COLS = 16;
-
+  // Posições abaixo são só o tabuleiro reserva: cada partida gera um novo (seção 5).
   const WORDS = [
     { answer: "MICROCONTROLADOR", row: 10, col: 0, dir: "H", name: "Microcontrolador",
       clue: "Chip único com processador, memória e periféricos, usado em sistemas embarcados como o Arduino.",
@@ -178,43 +176,168 @@
   };
 
   /* ---------------------------------------------------------
-     5. Montagem do tabuleiro (estrutura fixa)
+     5. Gerador de cruzadinha: um tabuleiro novo a cada partida
      --------------------------------------------------------- */
+  WORDS.forEach((w, i) => (w.index = i));
+  const BY_ANSWER = Object.fromEntries(WORDS.map((w) => [w.answer, w]));
+  const MAX_COLS = 16; // a maior palavra tem 16 letras; mantém o tabuleiro estreito no celular
+  const MAX_ROWS = 18;
+
   // grid[r][c] = null (casa preta) ou { answer, words: {H, V}, num, input, wrap }
-  const grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+  let ROWS = 13, COLS = 16, grid = [], ORDERED = []; // 13x16 = tamanho do tabuleiro reserva
+  let lastSignature = "";
 
-  WORDS.forEach((w, i) => {
-    w.index = i;
-    w.cells = [];
-    for (let k = 0; k < w.answer.length; k++) {
-      const r = w.dir === "V" ? w.row + k : w.row;
-      const c = w.dir === "H" ? w.col + k : w.col;
-      if (!grid[r][c]) grid[r][c] = { r, c, answer: w.answer[k], words: {}, num: null };
-      const cell = grid[r][c];
-      if (cell.answer !== w.answer[k]) throw new Error("Cruzamento inválido em " + w.answer);
-      cell.words[w.dir] = i;
-      w.cells.push(cell);
+  const shuffle = (arr) => {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
     }
-  });
+    return arr;
+  };
 
-  // Numeração padrão de cruzadinha: da esquerda para a direita, de cima para baixo
-  let n = 0;
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      const cell = grid[r][c];
-      if (!cell) continue;
-      const starts = WORDS.filter((w) => w.row === r && w.col === c);
-      if (starts.length) {
-        n++;
-        cell.num = n;
-        starts.forEach((w) => (w.num = n));
+  // Tenta encaixar todas as palavras. Retorna { placed, rows, cols, crossings } ou null.
+  function tryLayout() {
+    const cells = new Map(); // "r,c" -> { ch, dirs: Set }
+    const key = (r, c) => r + "," + c;
+    let minR = 0, maxR = 0, minC = 0, maxC = 0;
+    const placed = {};
+    let crossings = 0;
+
+    const fits = (word, r, c, dir) => {
+      const dr = dir === "V" ? 1 : 0, dc = dir === "H" ? 1 : 0;
+      const len = word.length;
+      // casas antes do início e depois do fim precisam estar livres
+      if (cells.has(key(r - dr, c - dc)) || cells.has(key(r + dr * len, c + dc * len))) return -1;
+      const nMinR = Math.min(minR, r), nMaxR = Math.max(maxR, r + dr * (len - 1));
+      const nMinC = Math.min(minC, c), nMaxC = Math.max(maxC, c + dc * (len - 1));
+      if (nMaxR - nMinR + 1 > MAX_ROWS || nMaxC - nMinC + 1 > MAX_COLS) return -1;
+      let cross = 0;
+      for (let k = 0; k < len; k++) {
+        const rr = r + dr * k, cc = c + dc * k;
+        const here = cells.get(key(rr, cc));
+        if (here) {
+          if (here.ch !== word[k] || here.dirs.has(dir)) return -1;
+          cross++;
+        } else {
+          // casa nova não pode encostar de lado em outra letra
+          if (cells.has(key(rr + dc, cc + dr)) || cells.has(key(rr - dc, cc - dr))) return -1;
+        }
+      }
+      return cross === len ? -1 : cross;
+    };
+
+    const put = (w, r, c, dir) => {
+      const dr = dir === "V" ? 1 : 0, dc = dir === "H" ? 1 : 0;
+      for (let k = 0; k < w.answer.length; k++) {
+        const rr = r + dr * k, cc = c + dc * k;
+        const k2 = key(rr, cc);
+        if (!cells.has(k2)) cells.set(k2, { ch: w.answer[k], dirs: new Set() });
+        cells.get(k2).dirs.add(dir);
+        minR = Math.min(minR, rr); maxR = Math.max(maxR, rr);
+        minC = Math.min(minC, cc); maxC = Math.max(maxC, cc);
+      }
+      placed[w.answer] = { row: r, col: c, dir };
+    };
+
+    // palavras longas primeiro (com um pouco de sorte na ordem)
+    const order = shuffle([...WORDS]).sort((a, b) => b.answer.length - a.answer.length + (Math.random() - 0.5) * 6);
+    const first = order.shift();
+    put(first, 0, 0, first.answer.length > MAX_ROWS || Math.random() < 0.5 ? "H" : "V");
+
+    let pending = order, progress = true;
+    while (pending.length && progress) {
+      progress = false;
+      const still = [];
+      for (const w of pending) {
+        const options = [];
+        for (const [k, cell] of cells) {
+          const [r, c] = k.split(",").map(Number);
+          for (let i = 0; i < w.answer.length; i++) {
+            if (w.answer[i] !== cell.ch) continue;
+            for (const dir of ["H", "V"]) {
+              if (cell.dirs.has(dir)) continue;
+              const sr = dir === "V" ? r - i : r, sc = dir === "H" ? c - i : c;
+              const cross = fits(w.answer, sr, sc, dir);
+              if (cross > 0) options.push({ sr, sc, dir, cross, rnd: Math.random() });
+            }
+          }
+        }
+        if (!options.length) { still.push(w); continue; }
+        // prefere mais cruzamentos, com sorteio entre os empatados
+        options.sort((a, b) => b.cross - a.cross || a.rnd - b.rnd);
+        const pick = options[Math.random() < 0.7 ? 0 : Math.floor(Math.random() * Math.min(4, options.length))];
+        put(w, pick.sr, pick.sc, pick.dir);
+        crossings += pick.cross;
+        progress = true;
+      }
+      pending = still;
+    }
+    if (pending.length) return null;
+
+    for (const p of Object.values(placed)) { p.row -= minR; p.col -= minC; }
+    return { placed, rows: maxR - minR + 1, cols: maxC - minC + 1, crossings };
+  }
+
+  function generateLayout() {
+    const found = [];
+    for (let t = 0; t < 300 && found.length < 30; t++) {
+      const lay = tryLayout();
+      if (!lay) continue;
+      lay.sig = WORDS.map((w) => { const p = lay.placed[w.answer]; return p.dir + p.row + "." + p.col; }).join("|");
+      if (lay.sig === lastSignature) continue;
+      lay.score = lay.crossings * 6 - lay.rows * lay.cols / 8;
+      found.push(lay);
+    }
+    if (!found.length) return null;
+    // sorteia entre os mais compactos, para variar sem ficar feio
+    found.sort((a, b) => b.score - a.score);
+    return found[Math.floor(Math.random() * Math.min(8, found.length))];
+  }
+
+  function applyLayout() {
+    const lay = generateLayout();
+    if (lay) {
+      lastSignature = lay.sig;
+      ROWS = lay.rows; COLS = lay.cols;
+      for (const w of WORDS) Object.assign(w, lay.placed[w.answer]);
+    } // se o gerador falhar (improvável), mantém as posições originais
+
+    grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+    WORDS.forEach((w, i) => {
+      w.cells = [];
+      for (let k = 0; k < w.answer.length; k++) {
+        const r = w.dir === "V" ? w.row + k : w.row;
+        const c = w.dir === "H" ? w.col + k : w.col;
+        if (!grid[r][c]) grid[r][c] = { r, c, answer: w.answer[k], words: {}, num: null };
+        const cell = grid[r][c];
+        if (cell.answer !== w.answer[k]) throw new Error("Cruzamento inválido em " + w.answer);
+        cell.words[w.dir] = i;
+        w.cells.push(cell);
+      }
+    });
+
+    // Numeração padrão de cruzadinha: da esquerda para a direita, de cima para baixo
+    let n = 0;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const cell = grid[r][c];
+        if (!cell) continue;
+        const starts = WORDS.filter((w) => w.row === r && w.col === c);
+        if (starts.length) {
+          n++;
+          cell.num = n;
+          starts.forEach((w) => (w.num = n));
+        }
       }
     }
+    ORDERED = [...WORDS].sort((a, b) => (a.dir === b.dir ? a.num - b.num : a.dir === "H" ? -1 : 1));
+    sel = { r: -1, c: -1, dir: "H" };
+    buildBoard();
+    buildClues();
   }
-  const BY_ANSWER = Object.fromEntries(WORDS.map((w) => [w.answer, w]));
-  const ORDERED = [...WORDS].sort((a, b) => (a.dir === b.dir ? a.num - b.num : a.dir === "H" ? -1 : 1));
 
   function buildBoard() {
+    el.board.innerHTML = "";
     el.board.style.setProperty("--cols", COLS);
     const frag = document.createDocumentFragment();
     for (let r = 0; r < ROWS; r++) {
@@ -251,6 +374,8 @@
   }
 
   function buildClues() {
+    el.cluesH.innerHTML = "";
+    el.cluesV.innerHTML = "";
     for (const w of ORDERED) {
       const li = document.createElement("li");
       li.dataset.index = w.index;
@@ -304,6 +429,7 @@
 
   function newGame(mode) {
     S = freshState(mode);
+    applyLayout(); // cruzadinha nova a cada partida
     for (const row of grid) for (const cell of row) {
       if (!cell) continue;
       cell.value = "";
@@ -330,8 +456,8 @@
     S.running = true;
     S.lastTick = performance.now();
 
-    const first = BY_ANSWER.MEMORIADEMASSA.cells[0];
-    select(first.r, first.c, "H");
+    const first = ORDERED[0].cells[0];
+    select(first.r, first.c, ORDERED[0].dir);
     focusSelected();
   }
 
@@ -1160,13 +1286,12 @@
   /* ---------------------------------------------------------
      17. Início
      --------------------------------------------------------- */
-  buildBoard();
-  buildClues();
+  applyLayout(); // tabuleiro de fundo enquanto a tela inicial está aberta
   buildAchievements();
   bindBoard();
   bindUI();
   requestAnimationFrame(tick);
 
   // Exposto só para depuração no console (window.OVERCLOCK.state())
-  window.OVERCLOCK = { state: () => S, words: WORDS };
+  window.OVERCLOCK = { state: () => S, words: WORDS, grid: () => grid, newBoard: applyLayout };
 })();

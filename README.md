@@ -51,6 +51,8 @@ Um surto de energia apagou os nomes dos componentes de um computador e a CPU est
 
 O tabuleiro usa **as 16 palavras** da lista, e todas se cruzam com pelo menos uma outra.
 
+A cada partida nova (ou ao **Reiniciar**), o jogo **gera uma cruzadinha diferente**: as palavras mudam de posição, de direção e de numeração. As tabelas abaixo mostram o tabuleiro reserva, usado só se o gerador falhar.
+
 ### Horizontais
 
 | Nº | Palavra | Pista |
