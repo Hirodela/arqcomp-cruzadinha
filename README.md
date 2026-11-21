@@ -30,7 +30,7 @@ Um surto de energia apagou os nomes dos componentes de um computador e a CPU est
 | Ferramentas | **Sonda** revela uma letra · **Diagnóstico** confere só a palavra atual sem esquentar · **Cooler** baixa 20 °C · **Decodificar** revela a palavra inteira (vale 0 pontos). |
 | Esquema da placa | Cada palavra confirmada acende um componente no diagrama do computador. Clicar nele abre o manual técnico com a explicação do conceito. |
 | Bit flip | No modo Overclock, de tempos em tempos uma letra não confirmada do tabuleiro é corrompida. |
-| Conquistas | 14 conquistas salvas no navegador (ex.: "Hierarquia completa", "Zero defeitos", "Overclocker"). |
+| Conquistas | 26 conquistas salvas no navegador (ex.: "Hierarquia completa", "Zero defeitos", "Memória ECC", "Transferência em rajada"). A última, "Arquiteto completo", exige todas as outras. |
 | Ranking | Os 10 melhores resultados ficam salvos no navegador (`localStorage`). |
 
 ### Dificuldades

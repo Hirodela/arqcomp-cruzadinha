@@ -95,6 +95,18 @@
     { id: "limite", icon: "🌋", name: "No limite", desc: "Vença depois de passar dos 90 °C." },
     { id: "speed", icon: "⏱", name: "Clock alto", desc: "Vença em menos de 5 minutos." },
     { id: "overclocker", icon: "👑", name: "Overclocker", desc: "Vença no modo Overclock." },
+    { id: "estagiario", icon: "🎓", name: "Estágio concluído", desc: "Vença no modo Estagiário." },
+    { id: "engenheiro", icon: "🛠", name: "Engenheiro de plantão", desc: "Vença no modo Engenheiro." },
+    { id: "rajada", icon: "📦", name: "Transferência em rajada", desc: "Confirme 5 palavras num único Conferir." },
+    { id: "combo8", icon: "⚙", name: "Superescalar", desc: "Chegue ao multiplicador máximo (x3.00)." },
+    { id: "diag", icon: "🩺", name: "Diagnóstico preciso", desc: "Confirme uma palavra usando o Diagnóstico." },
+    { id: "rico", icon: "💰", name: "Ciclos de sobra", desc: "Acumule 500 ciclos numa partida." },
+    { id: "recuperacao", icon: "🌬", name: "Resfriamento de emergência", desc: "Passe dos 85 °C e depois volte para menos de 60 °C." },
+    { id: "semcooler", icon: "🌀", name: "Dissipação passiva", desc: "Vença com temperatura ativa sem usar o Cooler." },
+    { id: "blindado", icon: "🛡", name: "Memória ECC", desc: "Vença no Overclock sem nenhum bit flip corromper uma letra." },
+    { id: "leitor", icon: "📖", name: "Leitor de datasheet", desc: "Abra o manual de 5 componentes clicando na placa." },
+    { id: "madrugada", icon: "🌙", name: "Turno da madrugada", desc: "Vença uma partida entre meia-noite e 5h." },
+    { id: "colecionador", icon: "🏆", name: "Arquiteto completo", desc: "Desbloqueie todas as outras conquistas." },
   ];
 
   /* ---------------------------------------------------------
@@ -286,6 +298,7 @@
       locked: new Set(), revealedWords: new Set(),
       revealedCells: new Set(), // "r,c"
       toolsUsed: 0, wrongTotal: 0, checks: 0, lastAlarm: 0,
+      coolsUsed: 0, flipsHit: 0, wasHot: false, manualsRead: new Set(),
     };
   }
 
@@ -575,6 +588,8 @@
       if (S.combo >= 2) log(`Combo x${comboMult().toFixed(2)}!`, "ok");
     }
     if (S.combo >= 5) unlock("combo5");
+    if (comboMult() >= 3) unlock("combo8");
+    if (right.length >= 5) unlock("rajada");
     updateHUD();
     checkWin();
   }
@@ -606,6 +621,7 @@
       const cyc = 10 + w.answer.length * 4;
       S.score += pts;
       S.cycles += cyc;
+      if (S.cycles >= 500) unlock("rico");
       const cool = Math.round(4 + w.answer.length * 0.5);
       if (S.cfg.tempRate) cool && heat(-cool);
       log(`${w.num}${w.dir} ${w.answer} restaurado: +${pts} pts, +${cyc} ciclos${S.cfg.tempRate ? `, −${cool} °C` : ""}.`, "ok");
@@ -702,6 +718,7 @@
       if (wordValue(w) === w.answer) {
         log(`Diagnóstico de ${w.num}${w.dir}: correta.`, "tool");
         lockWord(w, "diag");
+        unlock("diag");
         sound.ok();
         checkWin();
       } else {
@@ -716,6 +733,7 @@
       if (!S.cfg.cooler) return;
       if (S.temp <= START_TEMP + 1) { log("A CPU já está fria.", "info"); return; }
       if (!pay("cool")) return;
+      S.coolsUsed++;
       heat(-20);
       log("Cooler ligado no máximo: −20 °C.", "tool");
     }
@@ -749,6 +767,8 @@
     S.elapsed += dt;
     if (S.cfg.tempRate) {
       heat(S.cfg.tempRate * dt);
+      if (S.temp >= 85) S.wasHot = true;
+      else if (S.wasHot && S.temp < 60) unlock("recuperacao");
       if (S.temp >= 85 && S.elapsed - S.lastAlarm > 2.5) {
         S.lastAlarm = S.elapsed;
         sound.alarm();
@@ -777,6 +797,7 @@
     sound.glitch();
     if (!victims.length) { log("Bit flip atingiu casas vazias. Sem estrago.", "info"); return; }
     const v = victims[Math.floor(Math.random() * victims.length)];
+    S.flipsHit++;
     const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".replace(v.value, "");
     const bad = letters[Math.floor(Math.random() * letters.length)];
     setLetter(v, bad);
@@ -890,6 +911,8 @@
     toast("CONQUISTA DESBLOQUEADA", `${a.icon} ${a.name}`);
     if (S) log(`Conquista: ${a.name}.`, "warn");
     sound.ach();
+    // meta-conquista: todas as outras desbloqueadas
+    if (ACHIEVEMENTS.every((x) => x.id === "colecionador" || got.includes(x.id))) unlock("colecionador");
   }
 
   /* ---------------------------------------------------------
@@ -930,6 +953,11 @@
     if (S.maxTemp >= 90) unlock("limite");
     if (S.elapsed < 300) unlock("speed");
     if (S.mode === "overclock") unlock("overclocker");
+    if (S.mode === "estagiario") unlock("estagiario");
+    if (S.mode === "engenheiro") unlock("engenheiro");
+    if (S.cfg.tempRate && S.coolsUsed === 0) unlock("semcooler");
+    if (S.mode === "overclock" && S.flipsHit === 0) unlock("blindado");
+    if (new Date().getHours() < 5) unlock("madrugada");
 
     lastResult = { score: total, mode: S.mode, time: S.elapsed, saved: false };
 
@@ -1097,6 +1125,10 @@
       e.stopPropagation();
       if (!g.classList.contains("on")) return;
       showManual(BY_ANSWER[g.dataset.word]);
+      if (S) {
+        S.manualsRead.add(g.dataset.word);
+        if (S.manualsRead.size >= 5) unlock("leitor");
+      }
     }));
 
     // fim de jogo
