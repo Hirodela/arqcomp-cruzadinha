@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OVERCLOCK · Protocolo de Recuperação</title>
+  <meta name="description" content="Cruzadinha de Arquitetura Computacional em forma de jogo: restaure uma CPU corrompida antes que ela superaqueça.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Orbitron:wght@600;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="pcb-bg" aria-hidden="true"></div>
+
+  <!-- ===================== CABEÇALHO / HUD ===================== -->
+  <header class="hud">
+    <div class="brand">
+      <svg class="fan" id="fan" viewBox="0 0 40 40" aria-hidden="true">
+        <circle cx="20" cy="20" r="18" class="fan-ring"/>
+        <g class="fan-blades">
+          <path d="M20 20 C 20 8, 28 6, 30 10 C 28 14, 24 16, 20 20Z"/>
+          <path d="M20 20 C 32 20, 34 28, 30 30 C 26 28, 24 24, 20 20Z"/>
+          <path d="M20 20 C 20 32, 12 34, 10 30 C 12 26, 16 24, 20 20Z"/>
+          <path d="M20 20 C 8 20, 6 12, 10 10 C 14 12, 16 16, 20 20Z"/>
+        </g>
+        <circle cx="20" cy="20" r="3.5" class="fan-hub"/>
+      </svg>
+      <div>
+        <h1>OVERCLOCK</h1>
+        <p class="tagline">Protocolo de Recuperação · Cruzadinha de Arquitetura Computacional</p>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat stat-temp" title="Temperatura da CPU. Em 100 °C o sistema desliga.">
+        <span class="stat-label">TEMP</span>
+        <div class="thermo"><div class="thermo-fill" id="thermoFill"></div></div>
+        <span class="stat-value" id="tempValue">35 °C</span>
+      </div>
+      <div class="stat" title="Palavras confirmadas pelo botão Conferir">
+        <span class="stat-label">ACERTOS</span>
+        <span class="stat-value" id="counter">0 de 16 palavras</span>
+      </div>
+      <div class="stat" title="Moeda para comprar ferramentas de diagnóstico">
+        <span class="stat-label">CICLOS</span>
+        <span class="stat-value" id="cycles">0</span>
+      </div>
+      <div class="stat" title="Pontuação">
+        <span class="stat-label">PONTOS</span>
+        <span class="stat-value" id="score">0</span>
+      </div>
+      <div class="stat" title="Combo: conferências seguidas sem nenhum erro aumentam o multiplicador">
+        <span class="stat-label">COMBO</span>
+        <span class="stat-value" id="combo">x1.00</span>
+      </div>
+      <div class="stat" title="Tempo de jogo">
+        <span class="stat-label">TEMPO</span>
+        <span class="stat-value" id="clock">00:00</span>
+      </div>
+    </div>
+
+    <div class="hud-actions">
+      <button class="icon-btn" id="btnPause" title="Pausar (Esc)">❚❚</button>
+      <button class="icon-btn" id="btnSound" title="Som ligado/desligado">♪</button>
+      <button class="icon-btn" id="btnHelp" title="Como jogar">?</button>
+    </div>
+  </header>
+
+  <!-- ===================== ÁREA PRINCIPAL ===================== -->
+  <main class="layout" id="layout">
+
+    <!-- Coluna 1: esquema da placa + manual -->
+    <section class="panel panel-schematic" aria-label="Esquema da placa">
+      <h2 class="panel-title"><span class="dot"></span>ESQUEMA DA PLACA</h2>
+      <p class="panel-hint">Cada palavra confirmada religa um componente. Clique num componente aceso para ler o manual.</p>
+      <svg id="schematic" viewBox="0 0 360 430" role="img" aria-label="Diagrama da arquitetura do computador">
+        <defs>
+          <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="6" class="hatch-line"/>
+          </pattern>
+        </defs>
+
+        <!-- CPU -->
+        <g class="comp comp-big" data-word="CPU">
+          <rect x="8" y="8" width="226" height="206" rx="8"/>
+          <text x="20" y="28" class="lbl" data-name="CPU">???</text>
+        </g>
+        <g class="comp" data-word="ULA"><rect x="20" y="38" width="96" height="44" rx="5"/><text x="68" y="65" class="lbl c" data-name="ULA">???</text></g>
+        <g class="comp" data-word="UC"><rect x="126" y="38" width="96" height="44" rx="5"/><text x="174" y="65" class="lbl c" data-name="UC">???</text></g>
+        <g class="comp" data-word="REGISTRADORES"><rect x="20" y="90" width="202" height="32" rx="5"/><text x="121" y="111" class="lbl c" data-name="REGISTRADORES">???</text></g>
+        <g class="comp" data-word="CACHE"><rect x="20" y="130" width="202" height="32" rx="5"/><text x="121" y="151" class="lbl c" data-name="CACHE">???</text></g>
+        <g class="comp" data-word="DUALCORE"><rect x="20" y="170" width="96" height="34" rx="5"/><text x="68" y="192" class="lbl c" data-name="DUAL CORE">???</text></g>
+        <g class="comp" data-word="QUADCORE"><rect x="126" y="170" width="96" height="34" rx="5"/><text x="174" y="192" class="lbl c" data-name="QUAD CORE">???</text></g>
+
+        <!-- DMA -->
+        <g class="comp" data-word="DMA"><rect x="250" y="88" width="100" height="44" rx="5"/><text x="300" y="115" class="lbl c" data-name="DMA">???</text></g>
+
+        <!-- Fios -->
+        <g class="wires">
+          <line x1="80" y1="214" x2="80" y2="246"/>
+          <line x1="160" y1="214" x2="160" y2="268"/>
+          <line x1="300" y1="132" x2="300" y2="268"/>
+          <line x1="47" y1="246" x2="47" y2="300"/>
+          <line x1="130" y1="246" x2="130" y2="300"/>
+          <line x1="217" y1="246" x2="217" y2="300"/>
+          <line x1="308" y1="246" x2="308" y2="300"/>
+          <line x1="60" y1="268" x2="60" y2="300"/>
+          <line x1="143" y1="268" x2="143" y2="300"/>
+          <line x1="230" y1="268" x2="230" y2="300"/>
+          <line x1="321" y1="268" x2="321" y2="300"/>
+          <line x1="110" y1="340" x2="110" y2="354"/>
+        </g>
+
+        <!-- Barramentos -->
+        <g class="comp bus" data-word="ADDRESSBUS">
+          <path id="pathAddr" d="M8 246 H352"/>
+          <text x="10" y="240" class="lbl small" data-name="ADDRESS BUS →">???</text>
+          <circle r="3.5" class="packet"><animateMotion dur="2.4s" repeatCount="indefinite"><mpath href="#pathAddr"/></animateMotion></circle>
+          <circle r="3.5" class="packet"><animateMotion dur="2.4s" begin="1.2s" repeatCount="indefinite"><mpath href="#pathAddr"/></animateMotion></circle>
+        </g>
+        <g class="comp bus" data-word="DATABUS">
+          <path id="pathData" d="M8 268 H352"/>
+          <path id="pathDataBack" d="M352 268 H8" class="ghost"/>
+          <text x="10" y="284" class="lbl small" data-name="DATA BUS ↔">???</text>
+          <circle r="3.5" class="packet"><animateMotion dur="2s" repeatCount="indefinite"><mpath href="#pathData"/></animateMotion></circle>
+          <circle r="3.5" class="packet alt"><animateMotion dur="2s" begin="1s" repeatCount="indefinite"><mpath href="#pathDataBack"/></animateMotion></circle>
+        </g>
+
+        <!-- Memórias -->
+        <g class="comp" data-word="RAM"><rect x="8" y="300" width="78" height="40" rx="5"/><text x="47" y="325" class="lbl c" data-name="RAM">???</text></g>
+        <g class="comp" data-word="ROM"><rect x="92" y="300" width="78" height="40" rx="5"/><text x="131" y="325" class="lbl c" data-name="ROM">???</text></g>
+        <g class="comp" data-word="EEPROM"><rect x="176" y="300" width="84" height="40" rx="5"/><text x="218" y="325" class="lbl c" data-name="EEPROM">???</text></g>
+        <g class="comp" data-word="FLASH"><rect x="266" y="300" width="86" height="40" rx="5"/><text x="309" y="325" class="lbl c" data-name="FLASH">???</text></g>
+        <g class="comp" data-word="MEMORIADEMASSA"><rect x="8" y="354" width="200" height="44" rx="5"/><text x="108" y="381" class="lbl c" data-name="MEMÓRIA DE MASSA">???</text></g>
+
+        <!-- Microcontrolador -->
+        <g class="comp chip" data-word="MICROCONTROLADOR">
+          <rect x="226" y="354" width="126" height="56" rx="4"/>
+          <g class="pins">
+            <line x1="238" y1="348" x2="238" y2="354"/><line x1="254" y1="348" x2="254" y2="354"/><line x1="270" y1="348" x2="270" y2="354"/><line x1="286" y1="348" x2="286" y2="354"/><line x1="302" y1="348" x2="302" y2="354"/><line x1="318" y1="348" x2="318" y2="354"/><line x1="334" y1="348" x2="334" y2="354"/>
+            <line x1="238" y1="410" x2="238" y2="416"/><line x1="254" y1="410" x2="254" y2="416"/><line x1="270" y1="410" x2="270" y2="416"/><line x1="286" y1="410" x2="286" y2="416"/><line x1="302" y1="410" x2="302" y2="416"/><line x1="318" y1="410" x2="318" y2="416"/><line x1="334" y1="410" x2="334" y2="416"/>
+          </g>
+          <text x="289" y="386" class="lbl c small" data-name="MICROCONTROLADOR">???</text>
+        </g>
+      </svg>
+
+      <div class="manual" id="manual">
+        <h3 id="manualTitle">MANUAL TÉCNICO</h3>
+        <p id="manualText">Nenhum componente restaurado ainda. Resolva palavras e use o botão <strong>Conferir</strong> para religar a máquina.</p>
+      </div>
+    </section>
+
+    <!-- Coluna 2: tabuleiro -->
+    <section class="panel panel-board" aria-label="Tabuleiro">
+      <div class="clue-bar" id="clueBar">
+        <span class="clue-bar-tag" id="clueBarTag">—</span>
+        <span class="clue-bar-text" id="clueBarText">Clique numa casa para começar.</span>
+      </div>
+
+      <div class="board-wrap" id="boardWrap">
+        <div class="board" id="board" role="grid" aria-label="Cruzadinha"></div>
+        <div class="pause-veil" id="pauseVeil">
+          <div>
+            <p class="pause-title">SISTEMA EM ESPERA</p>
+            <button class="btn btn-primary" id="btnResume">Continuar</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-primary" id="btnCheck" title="Confere todas as palavras do tabuleiro">✔ Conferir</button>
+        <button class="btn btn-danger" id="btnReset" title="Limpa o tabuleiro">⟲ Reiniciar</button>
+      </div>
+
+      <div class="tools" aria-label="Ferramentas de diagnóstico">
+        <button class="tool" id="toolProbe" data-tool="probe">
+          <span class="tool-name">🔍 Sonda</span>
+          <span class="tool-desc">Revela a letra da casa selecionada</span>
+          <span class="tool-cost" id="costProbe">—</span>
+        </button>
+        <button class="tool" id="toolDiag" data-tool="diag">
+          <span class="tool-name">🩺 Diagnóstico</span>
+          <span class="tool-desc">Confere só a palavra atual, sem esquentar</span>
+          <span class="tool-cost" id="costDiag">—</span>
+        </button>
+        <button class="tool" id="toolCool" data-tool="cool">
+          <span class="tool-name">❄ Cooler</span>
+          <span class="tool-desc">Baixa 20 °C da temperatura</span>
+          <span class="tool-cost" id="costCool">—</span>
+        </button>
+        <button class="tool" id="toolDecode" data-tool="decode">
+          <span class="tool-name">🔓 Decodificar</span>
+          <span class="tool-desc">Revela a palavra atual (vale 0 pontos)</span>
+          <span class="tool-cost" id="costDecode">—</span>
+        </button>
+      </div>
+
+      <div class="terminal" aria-live="polite">
+        <div class="terminal-head">/var/log/sistema</div>
+        <ol class="terminal-body" id="log"></ol>
+      </div>
+    </section>
+
+    <!-- Coluna 3: pistas + conquistas -->
+    <section class="panel panel-clues" aria-label="Pistas">
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="clues" role="tab">PISTAS</button>
+        <button class="tab" data-tab="achievements" role="tab">CONQUISTAS <span id="achCount">0/14</span></button>
+      </div>
+
+      <div class="tab-page active" id="tab-clues">
+        <h3 class="clue-head">Horizontais</h3>
+        <ol class="clue-list" id="cluesH"></ol>
+        <h3 class="clue-head">Verticais</h3>
+        <ol class="clue-list" id="cluesV"></ol>
+      </div>
+
+      <div class="tab-page" id="tab-achievements">
+        <ul class="ach-list" id="achList"></ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    Atividade de Arquitetura Computacional · HTML, CSS e JavaScript puros ·
+    Teclado: letras digitam, <kbd>←↑→↓</kbd> movem, <kbd>Espaço</kbd> troca direção, <kbd>Tab</kbd> próxima palavra, <kbd>Enter</kbd> confere, <kbd>Esc</kbd> pausa
+  </footer>
+
+  <!-- ===================== MODAL: TELA INICIAL ===================== -->
+  <div class="modal open" id="modalStart" role="dialog" aria-modal="true" aria-labelledby="startTitle">
+    <div class="modal-box modal-wide">
+      <p class="eyebrow">ALERTA DE SISTEMA · CÓDIGO 0xDEAD</p>
+      <h2 id="startTitle" class="glitch" data-text="CPU CORROMPIDA">CPU CORROMPIDA</h2>
+      <p class="lead">
+        Um surto de energia apagou os nomes de todos os componentes da máquina. A CPU está esquentando.
+        Você é o técnico de plantão: descubra os <strong>16 termos</strong> da cruzadinha, confirme com
+        <strong>Conferir</strong> e religue cada peça antes que a temperatura chegue a <strong>100 °C</strong>.
+      </p>
+
+      <div class="modes" role="radiogroup" aria-label="Dificuldade">
+        <button class="mode" data-mode="estagiario" role="radio">
+          <span class="mode-name">ESTAGIÁRIO</span>
+          <span class="mode-desc">Sem temperatura. Muitos ciclos e ferramentas baratas. Para aprender com calma.</span>
+          <span class="mode-mult">pontos x1</span>
+        </button>
+        <button class="mode selected" data-mode="engenheiro" role="radio">
+          <span class="mode-name">ENGENHEIRO</span>
+          <span class="mode-desc">A CPU esquenta com o tempo e a cada palavra errada. Cada acerto resfria.</span>
+          <span class="mode-mult">pontos x1.5</span>
+        </button>
+        <button class="mode" data-mode="overclock" role="radio">
+          <span class="mode-name">OVERCLOCK</span>
+          <span class="mode-desc">Esquenta rápido, ferramentas caras, sem Decodificar e com <em>bit flips</em> que corrompem letras.</span>
+          <span class="mode-mult">pontos x2.5</span>
+        </button>
+      </div>
+
+      <div class="start-actions">
+        <button class="btn btn-primary btn-big" id="btnStart">▶ INICIAR RECUPERAÇÃO</button>
+        <button class="btn" id="btnShowRanking">🏆 Ranking</button>
+        <button class="btn" id="btnShowHelp2">? Como jogar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: AJUDA ===================== -->
+  <div class="modal" id="modalHelp" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="modal-box">
+      <h2 id="helpTitle">COMO JOGAR</h2>
+      <ol class="help-list">
+        <li><strong>Digite direto nas casas.</strong> Clique numa casa ou numa pista. Clicar de novo na mesma casa troca entre horizontal e vertical.</li>
+        <li><strong>Conferir</strong> verifica o tabuleiro inteiro: palavras certas ficam verdes e travadas, as erradas ficam vermelhas. Cada palavra completa e errada <em>esquenta</em> a CPU.</li>
+        <li><strong>Combo:</strong> se uma conferência não tiver nenhuma palavra errada, o multiplicador de pontos sobe. Um erro zera o combo.</li>
+        <li><strong>Ciclos</strong> são ganhos a cada acerto e compram ferramentas: Sonda, Diagnóstico, Cooler e Decodificar.</li>
+        <li><strong>Temperatura:</strong> sobe com o tempo e com erros, desce a cada acerto. Em 100 °C acontece o <em>thermal shutdown</em> e a partida acaba.</li>
+        <li>No modo <strong>Overclock</strong>, de tempos em tempos um <em>bit flip</em> troca uma letra não confirmada do tabuleiro. Fique de olho no log.</li>
+        <li><strong>Reiniciar</strong> limpa o tabuleiro e começa de novo.</li>
+        <li>Confirme as 16 palavras para dar o <em>boot</em> na máquina e entrar no ranking.</li>
+      </ol>
+      <p class="help-keys">
+        <kbd>←↑→↓</kbd> mover · <kbd>Espaço</kbd> trocar direção · <kbd>Tab</kbd>/<kbd>Shift+Tab</kbd> palavra seguinte/anterior ·
+        <kbd>Backspace</kbd> apagar · <kbd>Enter</kbd> conferir · <kbd>Esc</kbd> pausar
+      </p>
+      <div class="modal-actions"><button class="btn btn-primary" data-close="modalHelp">Entendi</button></div>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: RANKING ===================== -->
+  <div class="modal" id="modalRanking" role="dialog" aria-modal="true" aria-labelledby="rankTitle">
+    <div class="modal-box">
+      <h2 id="rankTitle">🏆 RANKING LOCAL</h2>
+      <p class="muted">Os 10 melhores resultados salvos neste navegador.</p>
+      <table class="rank-table">
+        <thead><tr><th>#</th><th>Técnico</th><th>Modo</th><th>Tempo</th><th>Pontos</th></tr></thead>
+        <tbody id="rankBody"></tbody>
+      </table>
+      <div class="modal-actions"><button class="btn btn-primary" data-close="modalRanking">Fechar</button></div>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: CONFIRMAR REINÍCIO ===================== -->
+  <div class="modal" id="modalReset" role="dialog" aria-modal="true" aria-labelledby="resetTitle">
+    <div class="modal-box modal-small">
+      <h2 id="resetTitle">REINICIAR?</h2>
+      <p>O tabuleiro será limpo e a partida volta do zero.</p>
+      <div class="modal-actions">
+        <button class="btn" data-close="modalReset">Cancelar</button>
+        <button class="btn" id="btnResetMenu">Trocar modo</button>
+        <button class="btn btn-danger" id="btnResetConfirm">Limpar tabuleiro</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: FIM DE JOGO ===================== -->
+  <div class="modal" id="modalEnd" role="dialog" aria-modal="true" aria-labelledby="endTitle">
+    <div class="modal-box modal-wide">
+      <pre class="boot" id="bootLog"></pre>
+      <h2 id="endTitle">—</h2>
+      <div class="end-grid" id="endStats"></div>
+      <form class="save-form" id="saveForm">
+        <label for="playerName">Nome para o ranking (sem dados pessoais):</label>
+        <div class="save-row">
+          <input id="playerName" maxlength="14" autocomplete="off" placeholder="ex.: Técnico_01">
+          <button class="btn btn-primary" type="submit">Salvar</button>
+        </div>
+      </form>
+      <div class="modal-actions">
+        <button class="btn" id="btnEndRanking">🏆 Ranking</button>
+        <button class="btn btn-primary" id="btnPlayAgain">Jogar de novo</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
