@@ -58,6 +58,8 @@ kbd {
   padding: 0 5px; border-radius: 4px; background: var(--bg-2); color: var(--cyan);
 }
 .muted { color: var(--muted); }
+:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.cell input:focus-visible { outline: none; } /* a casa ativa já tem destaque próprio */
 
 /* ===================== HUD ===================== */
 .hud {
@@ -98,6 +100,7 @@ kbd {
   background-size: 300px 100%;
   transition: width 0.4s;
 }
+.thermo.progress .thermo-fill { background: var(--green); box-shadow: 0 0 6px var(--green); }
 .stat.bump { animation: bump 0.35s; }
 @keyframes bump { 50% { transform: scale(1.08); border-color: var(--cyan); } }
 
@@ -248,6 +251,32 @@ body.hot .board { animation: tremble 0.25s infinite; }
 }
 body.paused .pause-veil { display: flex; }
 .pause-title { font-family: var(--display); letter-spacing: 4px; color: var(--amber); }
+
+/* Texto flutuante (+pontos / +°C) */
+.float-pts {
+  position: absolute; z-index: 4; pointer-events: none;
+  font-weight: 800; font-size: 16px; white-space: nowrap;
+  color: var(--green); text-shadow: 0 0 10px rgba(92, 255, 138, 0.8), 0 0 2px #000;
+  transform: translate(-50%, -50%);
+  animation: floatUp 1.25s ease-out forwards;
+}
+.float-pts.bad { color: var(--red); text-shadow: 0 0 10px rgba(255, 77, 94, 0.8), 0 0 2px #000; }
+.float-pts.tool { color: var(--violet); text-shadow: 0 0 10px rgba(180, 140, 255, 0.8), 0 0 2px #000; }
+@keyframes floatUp {
+  0% { opacity: 0; transform: translate(-50%, -20%) scale(0.8); }
+  15% { opacity: 1; transform: translate(-50%, -60%) scale(1.15); }
+  100% { opacity: 0; transform: translate(-50%, -200%) scale(1); }
+}
+
+/* Chuva de bits na vitória */
+.confetti { position: fixed; inset: 0; z-index: 55; pointer-events: none; overflow: hidden; }
+.confetti i {
+  position: absolute; top: -24px;
+  font-style: normal; font-weight: 800; font-size: 16px;
+  text-shadow: 0 0 8px currentColor;
+  animation: fall 3s cubic-bezier(0.25, 0.6, 0.4, 1) forwards;
+}
+@keyframes fall { to { transform: translate(var(--dx), 105vh) rotate(var(--rot)); opacity: 0.15; } }
 
 /* ===================== BOTÕES ===================== */
 .btn {
@@ -419,7 +448,7 @@ body.paused .pause-veil { display: flex; }
 /* ===================== TOASTS ===================== */
 .toasts { position: fixed; right: 16px; bottom: 16px; z-index: 60; display: flex; flex-direction: column; gap: 8px; }
 .toast {
-  width: 290px; padding: 10px 12px; border-radius: 10px;
+  width: min(290px, calc(100vw - 32px)); padding: 10px 12px; border-radius: 10px;
   background: var(--panel); border: 1px solid var(--amber);
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
   animation: toastIn 0.35s, toastOut 0.4s 3.6s forwards;
@@ -451,10 +480,20 @@ body.paused .pause-veil { display: flex; }
   .cell input { font-size: 15px; }
 }
 @media (max-width: 520px) {
-  :root { --cell: clamp(17px, calc((100vw - 52px) / 16 - 2px), 26px); }
+  :root { --cell: clamp(17px, calc((100vw - 70px) / 16), 26px); }
   .layout { padding: 8px; gap: 10px; }
   .panel { padding: 8px; }
-  .stat-value { font-size: 12.5px; white-space: normal; }
+  /* HUD compacto e não fixo: com o teclado aberto, o tabuleiro precisa da tela */
+  .hud { position: static; padding: 8px 10px; gap: 8px; }
+  .brand { gap: 8px; }
+  .fan { width: 30px; height: 30px; }
+  .icon-btn { width: 32px; height: 32px; }
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .stat, .stat-temp { min-width: 0; padding: 3px 8px; border-radius: 6px; }
+  .stat-label { font-size: 9px; letter-spacing: 1px; }
+  .stat-value { font-size: 13px; }
+  .counter-suffix { display: none; }
+  .toasts { right: 8px; left: 8px; bottom: 8px; align-items: flex-end; }
   .clue-bar-text { font-size: 12.5px; }
   .board { gap: 2px; }
   .cell input { font-size: 12px; border-radius: 3px; }

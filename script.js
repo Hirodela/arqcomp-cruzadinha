@@ -121,7 +121,8 @@
   const el = {
     board: $("#board"), clueBarTag: $("#clueBarTag"), clueBarText: $("#clueBarText"),
     cluesH: $("#cluesH"), cluesV: $("#cluesV"), log: $("#log"),
-    temp: $("#tempValue"), thermo: $("#thermoFill"), counter: $("#counter"),
+    temp: $("#tempValue"), thermo: $("#thermoFill"), counter: $("#counter"), progress: $("#progressFill"),
+    boardWrap: $("#boardWrap"),
     cycles: $("#cycles"), score: $("#score"), combo: $("#combo"), clock: $("#clock"),
     fan: $("#fan .fan-blades"), manualTitle: $("#manualTitle"), manualText: $("#manualText"),
     achList: $("#achList"), achCount: $("#achCount"), toasts: $("#toasts"),
@@ -547,6 +548,7 @@
 
     // Erros: marcam em vermelho e esquentam a CPU
     wrong.forEach((w) => {
+      floatText(midCell(w), S.cfg.wrongHeat ? `+${S.cfg.wrongHeat} °C` : "✘", "bad");
       w.cells.forEach((c) => { if (!isLocked(c)) c.wrap.classList.add("bad"); });
       w.li.classList.add("bad");
       w.li.querySelector(".clue-state").textContent = "✘";
@@ -596,6 +598,7 @@
     if (how === "decode") {
       S.revealedWords.add(w.index);
       log(`${w.num}${w.dir} decodificada à força: ${w.answer} (0 pontos).`, "tool");
+      floatText(midCell(w), "◆ 0", "tool");
     } else {
       const hinted = w.cells.filter((c) => S.revealedCells.has(c.r + "," + c.c)).length;
       const factor = Math.max(0.2, 1 - hinted * 0.15);
@@ -607,6 +610,7 @@
       if (S.cfg.tempRate) cool && heat(-cool);
       log(`${w.num}${w.dir} ${w.answer} restaurado: +${pts} pts, +${cyc} ciclos${S.cfg.tempRate ? `, −${cool} °C` : ""}.`, "ok");
       bump("score"); bump("cycles");
+      floatText(midCell(w), "+" + pts.toLocaleString("pt-BR"));
     }
 
     // esquema da placa
@@ -803,7 +807,8 @@
     el.fan.style.animationDuration = (1.6 - (S.cfg.tempRate ? pct : 0) * 1.4).toFixed(1) + "s";
     el.clock.textContent = fmtTime(S.elapsed);
     if (fromTick) return;
-    el.counter.textContent = `${S.locked.size} de ${WORDS.length} palavras`;
+    el.counter.innerHTML = `${S.locked.size} de ${WORDS.length}<span class="counter-suffix"> palavras</span>`;
+    el.progress.style.width = (S.locked.size / WORDS.length) * 100 + "%";
     el.cycles.textContent = S.cycles;
     el.score.textContent = S.score.toLocaleString("pt-BR");
     el.combo.textContent = "x" + comboMult().toFixed(2);
@@ -823,6 +828,42 @@
     el.log.appendChild(li);
     while (el.log.children.length > 80) el.log.firstChild.remove();
     el.log.scrollTop = el.log.scrollHeight;
+  }
+
+  const midCell = (w) => w.cells[Math.floor((w.cells.length - 1) / 2)];
+
+  // texto flutuante sobre o tabuleiro (+pontos, +°C)
+  function floatText(cell, text, kind = "") {
+    if (!cell || !cell.wrap) return;
+    const f = document.createElement("div");
+    f.className = "float-pts " + kind;
+    f.textContent = text;
+    f.style.left = cell.wrap.offsetLeft + cell.wrap.offsetWidth / 2 + "px";
+    f.style.top = cell.wrap.offsetTop + "px";
+    el.boardWrap.appendChild(f);
+    setTimeout(() => f.remove(), 1300);
+  }
+
+  // chuva de "bits" na vitória
+  function celebrate() {
+    if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const box = document.createElement("div");
+    box.className = "confetti";
+    box.setAttribute("aria-hidden", "true");
+    const colors = ["var(--cyan)", "var(--green)", "var(--amber)", "var(--violet)"];
+    for (let i = 0; i < 90; i++) {
+      const p = document.createElement("i");
+      p.textContent = Math.random() < 0.5 ? "0" : "1";
+      p.style.left = Math.random() * 100 + "%";
+      p.style.color = colors[i % colors.length];
+      p.style.animationDelay = (Math.random() * 0.9).toFixed(2) + "s";
+      p.style.animationDuration = (2.2 + Math.random() * 1.8).toFixed(2) + "s";
+      p.style.setProperty("--dx", Math.round(Math.random() * 200 - 100) + "px");
+      p.style.setProperty("--rot", Math.round(Math.random() * 720 - 360) + "deg");
+      box.appendChild(p);
+    }
+    document.body.appendChild(box);
+    setTimeout(() => box.remove(), 5500);
   }
 
   function toast(title, text) {
@@ -874,6 +915,7 @@
     S.running = false;
     document.body.classList.remove("hot", "warm");
     sound.win();
+    celebrate();
 
     const m = S.cfg.scoreMult;
     const timeBonus = Math.max(0, Math.round((900 - S.elapsed) * 4 * m));

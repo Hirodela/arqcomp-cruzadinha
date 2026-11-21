@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>OVERCLOCK · Protocolo de Recuperação</title>
   <meta name="description" content="Cruzadinha de Arquitetura Computacional em forma de jogo: restaure uma CPU corrompida antes que ela superaqueça.">
+  <meta name="theme-color" content="#070b0a">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="OVERCLOCK · Protocolo de Recuperação">
+  <meta property="og:description" content="Cruzadinha de Arquitetura Computacional em forma de jogo: restaure uma CPU corrompida antes que ela superaqueça.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M10 2v4M16 2v4M22 2v4M10 26v4M16 26v4M22 26v4M2 10h4M2 16h4M2 22h4M26 10h4M26 16h4M26 22h4' stroke='%234de8ff' stroke-width='2'/%3E%3Crect x='6' y='6' width='20' height='20' rx='3' fill='%23070b0a' stroke='%234de8ff' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' rx='1' fill='%234de8ff'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Orbitron:wght@600;900&display=swap" rel="stylesheet">
@@ -40,7 +45,8 @@
       </div>
       <div class="stat" title="Palavras confirmadas pelo botão Conferir">
         <span class="stat-label">ACERTOS</span>
-        <span class="stat-value" id="counter">0 de 16 palavras</span>
+        <div class="thermo progress"><div class="thermo-fill" id="progressFill"></div></div>
+        <span class="stat-value" id="counter">0 de 16<span class="counter-suffix"> palavras</span></span>
       </div>
       <div class="stat" title="Moeda para comprar ferramentas de diagnóstico">
         <span class="stat-label">CICLOS</span>
