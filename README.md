@@ -4,7 +4,7 @@ Cruzadinha de **Arquitetura Computacional** em forma de jogo, feita em HTML, CSS
 
 Um surto de energia apagou os nomes dos componentes de um computador e a CPU está esquentando. O jogador é o técnico de plantão: precisa descobrir os 16 termos da cruzadinha e confirmar cada um com o botão **Conferir** para religar a máquina antes que a temperatura chegue a 100 °C.
 
-🔗 **Jogue aqui:** https://SEU-USUARIO.github.io/arqcomp-cruzadinha/
+🔗 **Jogue aqui:** https://Hirodela.github.io/arqcomp-cruzadinha/
 
 ---
 
